@@ -1,0 +1,6 @@
+artifacts/*.json
+artifacts/*.sarif
+artifacts/*.md
+.bin/
+.venv/
+__pycache__/

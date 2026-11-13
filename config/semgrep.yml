@@ -1,0 +1,146 @@
+# =============================================================================
+# Task 2 - SAST rules (semgrep, local rules only: no registry, no network)
+#
+# BOUNDED RULE SET: 7 rules, one category - Python security (injection, unsafe
+# deserialisation, transport, crypto, availability). Small enough that every
+# rule is reviewed and every finding is worth reading.
+#
+# Severity scale (semgrep native): INFO < LOW < MEDIUM < HIGH < CRITICAL.
+# The wrapper blocks on findings >= $MIN_SEVERITY (default HIGH).
+#
+# NOISE REDUCTION - all visible here, three mechanisms:
+#   (N1) per-rule PATH EXCLUDES: test code and fixtures never fail the build
+#   (N2) ALLOWLIST PATTERNS (pattern-not): the known-safe form of each API is
+#        excluded, e.g. parameterised SQL, constant shell commands, SafeLoader
+#   (N3) PER-RULE SEVERITY: hygiene issues are LOW/INFO so they are reported
+#        but do not block at the default threshold
+# Inline `# nosemgrep` comments are DISABLED by the wrapper (--disable-nosem),
+# so no suppression can hide outside this file.
+# =============================================================================
+rules:
+  # ---------------------------------------------------------------- HIGH ----
+  - id: python-sqli-string-built-query
+    languages: [python]
+    severity: HIGH
+    message: >-
+      SQL query built from a string (f-string, concatenation, % or .format) and
+      passed to execute(). Use a parameterised query: execute("... %s", (value,)).
+    metadata:
+      category: injection
+      cwe: "CWE-89: SQL Injection"
+      fix: "cursor.execute(\"SELECT ... WHERE id = %s\", (user_id,))"
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.execute(f"...", ...)
+          - pattern: $CUR.execute("..." + $X, ...)
+          - pattern: $CUR.execute("..." % $X, ...)
+          - pattern: $CUR.execute("...".format(...), ...)
+      # (N2) a constant query with bound parameters is the safe form
+      - pattern-not: $CUR.execute("...", ...)
+    paths:
+      exclude: ["**/tests/**", "**/test_*.py"]          # (N1)
+
+  - id: python-subprocess-shell-injection
+    languages: [python]
+    severity: HIGH
+    message: >-
+      subprocess called with shell=True and a non-constant command. Pass an
+      argument list and drop shell=True.
+    metadata:
+      category: injection
+      cwe: "CWE-78: OS Command Injection"
+      fix: "subprocess.run([\"ls\", \"-la\", path], check=True)"
+    patterns:
+      - pattern: subprocess.$FUNC($CMD, ..., shell=True, ...)
+      # (N2) a constant command string cannot carry attacker input
+      - pattern-not: subprocess.$FUNC("...", ..., shell=True, ...)
+    paths:
+      exclude: ["**/tests/**", "**/test_*.py"]          # (N1)
+
+  - id: python-eval-dynamic
+    languages: [python]
+    severity: HIGH
+    message: eval()/exec() on a non-constant value can execute arbitrary code.
+    metadata:
+      category: injection
+      cwe: "CWE-95: Eval Injection"
+      fix: "ast.literal_eval(value) for data; a dispatch dict for behaviour"
+    patterns:
+      - pattern-either:
+          - pattern: eval($X)
+          - pattern: exec($X)
+      - pattern-not: eval("...")                        # (N2)
+      - pattern-not: exec("...")                        # (N2)
+    paths:
+      exclude: ["**/tests/**", "**/test_*.py"]          # (N1)
+
+  - id: python-yaml-unsafe-load
+    languages: [python]
+    severity: HIGH
+    message: >-
+      yaml.load() without a safe Loader can construct arbitrary Python objects.
+      Use yaml.safe_load().
+    metadata:
+      category: deserialization
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      fix: "yaml.safe_load(data)"
+    patterns:
+      - pattern: yaml.load(...)
+      - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)    # (N2)
+      - pattern-not: yaml.load(..., Loader=yaml.CSafeLoader, ...)   # (N2)
+    paths:
+      exclude: ["**/tests/**", "**/test_*.py"]          # (N1)
+
+  # -------------------------------------------------------------- MEDIUM ----
+  - id: python-requests-tls-verify-disabled
+    languages: [python]
+    severity: MEDIUM
+    message: TLS certificate verification disabled (verify=False). Traffic can be intercepted.
+    metadata:
+      category: transport
+      cwe: "CWE-295: Improper Certificate Validation"
+      fix: "remove verify=False, or verify=\"/path/to/internal-ca.pem\""
+    pattern: requests.$METHOD(..., verify=False, ...)
+    paths:
+      exclude: ["**/tests/**", "**/test_*.py"]          # (N1)
+
+  # ----------------------------------------------------------------- LOW ----
+  - id: python-weak-hash
+    languages: [python]
+    # (N3) LOW: often used for checksums/cache keys, not security
+    severity: LOW
+    message: >-
+      MD5/SHA-1 is broken for security purposes. Use SHA-256, or pass
+      usedforsecurity=False if this is a non-security checksum.
+    metadata:
+      category: crypto
+      cwe: "CWE-328: Use of Weak Hash"
+      fix: "hashlib.sha256(data) - or hashlib.md5(data, usedforsecurity=False)"
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+      # (N2) the developer has explicitly declared a non-security use
+      - pattern-not: hashlib.$H(..., usedforsecurity=False, ...)
+    paths:
+      exclude: ["**/tests/**", "**/test_*.py"]          # (N1)
+
+  # ---------------------------------------------------------------- INFO ----
+  - id: python-requests-no-timeout
+    languages: [python]
+    # (N3) INFO: availability hygiene, never blocks at default threshold
+    severity: INFO
+    message: HTTP call without a timeout can hang a worker indefinitely.
+    metadata:
+      category: availability
+      cwe: "CWE-400: Uncontrolled Resource Consumption"
+      fix: "requests.get(url, timeout=10)"
+    patterns:
+      - pattern: requests.$METHOD(...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(get|post|put|patch|delete|head|request)$
+      - pattern-not: requests.$METHOD(..., timeout=$T, ...)
+    paths:
+      exclude: ["**/tests/**", "**/test_*.py"]          # (N1)
+

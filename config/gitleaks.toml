@@ -1,0 +1,34 @@
+title = "secrets-scan-wrapper config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "acme-internal-token"
+
+description = "ACME internal service token"
+regex = '''\bacme_tok_[0-9a-f]{32}\b'''
+keywords = ["acme_tok_"]
+tags = ["internal", "custom"]
+
+# -----------------------------------------------------------------------------
+# TUNING CHOICE 2 - global allowlist.
+#   paths:     the scanner must never scan its own outputs or tool metadata,
+#              otherwise every run would "find" the previous run's results.
+#   stopwords: values that follow our documented "fake fixture" convention.
+# -----------------------------------------------------------------------------
+[[allowlists]]
+description = "Wrapper outputs, VCS metadata, dependency lockfiles"
+paths = [
+  '''(^|/)artifacts/''',
+  '''(^|/)\.git/''',
+  '''(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|go\.sum)$''',
+]
+
+[[allowlists]]
+description = "Test fixtures that follow the team's FAKE-value convention"
+# Team convention: deliberately fake credentials in fixtures/templates must
+# contain the marker `fixture`. Upstream already ignores generic words such as
+# "changeme"; this extends that to our own convention.
+stopwords = ["fixture"]
+
