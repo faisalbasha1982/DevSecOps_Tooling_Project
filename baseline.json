@@ -2,24 +2,14 @@
   "_comment": "Known/accepted secret findings. Matching is on 'fingerprint' only = sha256(rule_id \\0 file \\0 secret)[:16]. Every other field is for humans. 'reason' is mandatory; 'expires' (YYYY-MM-DD) makes the suppression stop working after that date. Add entries with `make baseline`, then replace the UNREVIEWED reason.",
   "entries": [
     {
-      "added_by": "faisal",
-      "added_on": "2026-11-12",
-      "expires": null,
-      "file": "demo/app/settings.py",
-      "fingerprint": "098502bcae83ed13",
-      "line_hint": 4,
-      "reason": "Fake token for the local integration stub; never valid against any ACME environment.",
-      "rule_id": "acme-internal-token"
-    },
-    {
       "added_by": "kali",
-      "added_on": "2026-11-12",
+      "added_on": "2026-11-13",
       "expires": null,
       "file": "demo/app/settings.py",
-      "fingerprint": "b7b60b2b5c3cdd09",
+      "fingerprint": "af47358524ce2dae",
       "line_hint": 4,
-      "reason": "UNREVIEWED - add a justification before merging",
-      "rule_id": "generic-api-key"
+      "reason": "Fake token for the local integration stub; never valid against any AGAPI environment.",
+      "rule_id": "agapi-internal-token"
     },
     {
       "added_by": "faisal",

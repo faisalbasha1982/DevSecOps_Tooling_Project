@@ -4,11 +4,11 @@ title = "secrets-scan-wrapper config"
 useDefault = true
 
 [[rules]]
-id = "acme-internal-token"
+id = "agapi-internal-token"
 
-description = "ACME internal service token"
-regex = '''\bacme_tok_[0-9a-f]{32}\b'''
-keywords = ["acme_tok_"]
+description = "AGAPI internal service token"
+regex = '''\bagapi_tok_[0-9a-f]{32}\b'''
+keywords = ["agapi_tok_"]
 tags = ["internal", "custom"]
 
 # -----------------------------------------------------------------------------

@@ -22,7 +22,7 @@ check "tuning works: .env.example (fixture) not reported" '! grep -q env.example
 check "baseline is inspectable: rule, file, reason each"  '[[ $(py $R/baseline.json "all(e[\"rule_id\"] and e[\"file\"] and e[\"reason\"] for e in d[\"entries\"])") == True ]]'
 cp "$(A secrets.raw.json)" "$(A secrets.filtered.json)" "$WORK/"; run "$R" secrets >/dev/null
 check "deterministic: rerun is byte-identical"            'cmp -s $WORK/secrets.raw.json $(A secrets.raw.json) && cmp -s $WORK/secrets.filtered.json $(A secrets.filtered.json)'
-TOKEN="$(python3 -c 'import secrets; print("acme_tok_" + secrets.token_hex(16))')"
+TOKEN="$(python3 -c 'import secrets; print("agapi_tok_" + secrets.token_hex(16))')"
 printf 'T = "%s"\n' "$TOKEN" > "$R/demo/app/leak.py"; rc="$(run "$R" secrets)"
 check "exit 1 on a new (non-baseline) secret"             '[[ $rc == 1 && $(py $(A secrets.filtered.json) "len(d)") == 1 ]]'
 check "secret value never written to artifacts"           '! grep -rq "$TOKEN" $R/artifacts/'
