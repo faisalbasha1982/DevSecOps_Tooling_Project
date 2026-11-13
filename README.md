@@ -62,7 +62,7 @@ Exit code 2 means the tool itself failed, for example Docker is missing or the b
 
 ```bash
 ./run.sh secrets; echo $?   # 0: 2 demo secrets found, both accepted in baseline.json
-python3 -c 'import secrets; print("T = \"acme_tok_" + secrets.token_hex(16) + "\"")' > demo/app/leak.py
+python3 -c 'import secrets; print("T = \"agapi_tok_" + secrets.token_hex(16) + "\"")' > demo/app/leak.py
 ./run.sh secrets; echo $?   # 1: "NEW secrets detected ... demo/app/leak.py:1"
 rm demo/app/leak.py
 ```
@@ -100,7 +100,7 @@ It works with Task 1 output, Task 2 output, or both.
 
 ## Tuning choices and why
 
-- **Secrets:** the full upstream ruleset, plus a custom `acme-internal-token` rule. It excludes `artifacts/`, `.git/` and lockfiles, and ignores values marked `fixture` (the convention for deliberately fake values).
+- **Secrets:** the full upstream ruleset, plus a custom `agapi-internal-token` rule. It excludes `artifacts/`, `.git/` and lockfiles, and ignores values marked `fixture` (the convention for deliberately fake values).
 - **SAST:** a bounded set of 7 Python security rules. `config/semgrep.yml` reduces noise in three ways, marked N1–N3: it skips test paths, ignores the safe form of each API (`pattern-not`), and gives hygiene issues a LOW or INFO severity. Without these, the demo produces 11 findings (5 HIGH) instead of 4 (none HIGH).
 - **No hidden suppressions:** `.gitleaksignore`, inline `gitleaks:allow`, `# nosemgrep` and semgrep's built-in default ignore list are all switched off. That last one silently skipped `tests/`. Every suppression is in `config/` or `baseline.json`.
 - **Same repo state, same results:** the scanner images are pinned and run with `--network none` against a read-only mount. Output is sorted, paths are relative, and there are no timestamps.
